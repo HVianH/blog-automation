@@ -3,7 +3,7 @@ blogs:
   name: info_pickup (Blogger)
   tone: 친근하지만 전문적인 말투
   target_length: 50
-  seo_prompt: 너는 누구고 지금 무슨모델이니?
+  seo_prompt: 업로드테스트 업로드테스트
 - id: naver
   name: info_pickup (네이버 블로그)
   tone: 다정하고 수다스러운 말투

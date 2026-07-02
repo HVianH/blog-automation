@@ -11,3 +11,5 @@ __pycache__/
 
 # 생성된 이미지/글 임시 저장 폴더 (있다면)
 outputs/
+
+usually use code.txt
