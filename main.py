@@ -1,0 +1,116 @@
+# region 비밀번호 보호
+import streamlit as st
+
+
+def check_password():
+    """올바른 비밀번호를 입력해야 다음으로 진행할 수 있게 막습니다."""
+    def password_entered():
+        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("비밀번호", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("비밀번호", type="password", on_change=password_entered, key="password")
+        st.error("비밀번호가 틀렸습니다.")
+        return False
+    else:
+        return True
+
+
+if not check_password():
+    st.stop()
+# endregion
+
+
+# region 설정 및 초기화
+from core.blog_config import load_blogs
+from components.ui import render_sidebar
+from components.text import generate_post
+from components.image import generate_post_elements, render_elements, render_reviewed_with_cached_images
+
+# provider별 API 키를 하나의 딕셔너리로 묶어서 관리 (secrets.toml에서 읽어옴)
+api_keys = {
+    "gemini": st.secrets.get("GEMINI_API_KEY"),
+    "openai": st.secrets.get("OPENAI_API_KEY"),
+    "anthropic": st.secrets.get("ANTHROPIC_API_KEY"),
+}
+
+st.title("📝 블로그 자동화")
+
+blogs = load_blogs()
+
+if "draft_text" not in st.session_state:
+    st.session_state.draft_text = None
+if "rendered_elements" not in st.session_state:
+    st.session_state.rendered_elements = None
+if "reviewed_text" not in st.session_state:
+    st.session_state.reviewed_text = None
+# endregion
+
+
+# region 사이드바 (블로그 설정 + 모델 선택 + 검수 버튼 포함)
+selected_blog, generate_images, text_provider, image_provider, review_provider = render_sidebar(blogs, api_keys)
+# endregion
+
+
+# region 글 작성 (버튼 눌렀을 때만 딱 한 번 생성)
+keyword = st.text_input("키워드를 입력하세요")
+
+if st.button("글 작성"):
+    try:
+        # 1. 자료조사 + SEO 글 작성 (사이드바에서 고른 provider 사용)
+        with st.spinner("자료를 조사하고 글을 작성하는 중..."):
+            draft_text = generate_post(text_provider, api_keys[text_provider], keyword, selected_blog)
+
+        # 2. 이미지가 켜져있으면 이미지까지 미리 생성해서 저장 (여기서만 API 호출!)
+        if generate_images:
+            elements = generate_post_elements(image_provider, api_keys[image_provider], draft_text)
+        else:
+            elements = None
+
+        st.session_state.draft_text = draft_text
+        st.session_state.rendered_elements = elements
+        st.session_state.reviewed_text = None  # 새 글이면 이전 검수본은 초기화
+        st.session_state.used_text_provider = text_provider
+        st.session_state.used_image_provider = image_provider if generate_images else None
+
+        st.rerun()  # 사이드바(검수 버튼)가 최신 상태를 바로 반영하도록 강제 새로고침
+
+    except (RuntimeError, ValueError) as e:
+        st.error(f"글 생성에 실패했습니다: {e}")
+# endregion
+
+
+# region 결과 표시 (재생성 없이, 저장된 결과만 그림)
+draft_text = st.session_state.draft_text
+
+if draft_text:
+    # 사용된 모델 표시
+    used_text = st.session_state.get("used_text_provider", "-")
+    used_image = st.session_state.get("used_image_provider") or "사용 안 함"
+    st.caption(f"✍️ 글쓰기: **{used_text}**  |  🖼️ 이미지: **{used_image}**")
+
+    st.write("### 생성된 글 (원본)")
+
+    if st.session_state.rendered_elements is not None:
+        render_elements(st.session_state.rendered_elements)
+    else:
+        st.caption("🖼️ 이미지 생성이 꺼져있어요. (사이드바에서 켤 수 있어요)")
+        st.markdown(draft_text)
+
+    # 검수본이 있으면 원본 아래에 같이 표시
+    if st.session_state.reviewed_text:
+        st.divider()
+        st.write(f"### ✨ 검수본 (AI 티 줄임 — {review_provider})")
+        if st.session_state.rendered_elements is not None:
+            render_reviewed_with_cached_images(
+                st.session_state.reviewed_text, st.session_state.rendered_elements
+            )
+        else:
+            st.markdown(st.session_state.reviewed_text)
+# endregion
