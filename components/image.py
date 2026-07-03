@@ -10,11 +10,11 @@ def generate_post_elements(provider: str, api_key: str, body_text: str) -> list:
 
     provider: "gemini" | "openai"
     """
-    parts = re.split(r"(\[IMAGE:.*?\])", body_text)
+    parts = re.split(r"(\[(?:IMAGE|이미지):.*?\])", body_text)
     elements = []
 
     for part in parts:
-        match = re.match(r"\[IMAGE:\s*(.*?)\]", part)
+        match = re.match(r"\[(?:IMAGE|이미지):\s*(.*?)\]", part)
         if match:
             image_description = match.group(1)
             status = st.empty()
@@ -54,9 +54,9 @@ def render_reviewed_with_cached_images(reviewed_text: str, original_elements: li
     cached_images = [el for el in original_elements if el["type"] in ("image", "image_error")]
     image_iter = iter(cached_images)
 
-    parts = re.split(r"(\[IMAGE:.*?\])", reviewed_text)
+    parts = re.split(r"(\[(?:IMAGE|이미지):.*?\])", reviewed_text)
     for part in parts:
-        match = re.match(r"\[IMAGE:\s*(.*?)\]", part)
+        match = re.match(r"\[(?:IMAGE|이미지):\s*(.*?)\]", part)
         if match:
             cached = next(image_iter, None)
             if cached is None:
