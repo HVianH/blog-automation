@@ -1,5 +1,5 @@
 import streamlit as st
-from core.blog_config import save_blogs
+from core.blog_config import save_blogs, load_prompt, save_prompt
 from core.reviewer import humanize_post
 
 # 드롭다운에 보여줄 이름 <-> 실제 provider 코드 매핑
@@ -12,7 +12,6 @@ TEXT_PROVIDER_OPTIONS = {
 IMAGE_PROVIDER_OPTIONS = {
     "gemini": "Gemini (gemini-2.5-flash-image)",
     "openai": "GPT (gpt-image-2)",
-    # Claude는 이미지 생성 API가 없어서 여기엔 없음
 }
 
 REVIEW_PROVIDER_OPTIONS = {
@@ -30,10 +29,8 @@ COMPARISON_LABELS = {
 
 @st.dialog("검수 결과 비교", width="large")
 def show_comparison_dialog():
-    """3개 모델의 검수 결과를 3열로 나란히 보여주는 팝업. (여기서는 API 호출 없음, 저장된 결과만 표시)"""
     results = st.session_state.get("multi_review_results", {})
     cols = st.columns(3)
-
     for col, provider in zip(cols, ["gemini", "openai", "anthropic"]):
         with col:
             st.markdown(f"**{COMPARISON_LABELS[provider]}**")
@@ -47,11 +44,6 @@ def show_comparison_dialog():
 
 
 def render_sidebar(blogs: list, api_keys: dict):
-    """사이드바 전체를 그립니다.
-
-    api_keys: {"gemini": "...", "openai": "...", "anthropic": "..."} 형태의 딕셔너리
-    반환값: (선택된 블로그 dict, 이미지 생성 여부 bool, 글쓰기 provider, 이미지 provider, 검수 provider)
-    """
     blog_names = {b["id"]: b["name"] for b in blogs}
 
     with st.sidebar:
@@ -64,13 +56,23 @@ def render_sidebar(blogs: list, api_keys: dict):
         )
         selected_blog = next(b for b in blogs if b["id"] == selected_id)
 
-        with st.expander("SEO 프롬프트 수정"):
-            with st.form("edit_prompt_form"):
+        st.divider()
+        st.subheader("🤖 사용할 모델")
+
+        text_provider = st.selectbox(
+            "글쓰기 모델",
+            options=list(TEXT_PROVIDER_OPTIONS.keys()),
+            format_func=lambda x: TEXT_PROVIDER_OPTIONS[x],
+        )
+
+        with st.expander(f"✏️ SEO 프롬프트 수정 ({TEXT_PROVIDER_OPTIONS[text_provider]})"):
+            with st.form(f"edit_prompt_form_{selected_id}_{text_provider}"):
+                current_prompt = load_prompt(selected_id, text_provider)
                 edited_prompt = st.text_area(
                     "SEO 프롬프트",
-                    value=selected_blog["seo_prompt"],
+                    value=current_prompt,
                     height=200,
-                    key=f"prompt_{selected_id}",
+                    key=f"prompt_{selected_id}_{text_provider}",
                 )
                 edited_length = st.number_input(
                     "목표 분량(자)",
@@ -80,20 +82,11 @@ def render_sidebar(blogs: list, api_keys: dict):
                 submitted = st.form_submit_button("💾 저장")
 
                 if submitted:
-                    selected_blog["seo_prompt"] = edited_prompt
+                    save_prompt(selected_id, text_provider, edited_prompt)
                     selected_blog["target_length"] = edited_length
                     save_blogs(blogs)
                     st.success("저장 완료!")
                     st.rerun()
-
-        st.divider()
-        st.subheader("🤖 사용할 모델")
-
-        text_provider = st.selectbox(
-            "글쓰기 모델",
-            options=list(TEXT_PROVIDER_OPTIONS.keys()),
-            format_func=lambda x: TEXT_PROVIDER_OPTIONS[x],
-        )
 
         generate_images = st.checkbox(
             "🖼️ 이미지 생성",

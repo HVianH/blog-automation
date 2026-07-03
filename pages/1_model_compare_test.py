@@ -4,7 +4,7 @@ from components.auth import check_password
 if not check_password():
     st.stop()
 
-from core.blog_config import load_blogs, save_blogs
+from core.blog_config import load_blogs, load_prompt, save_prompt
 from core.content_generator import generate_draft
 from core.reviewer import humanize_post
 
@@ -30,28 +30,25 @@ selected_id = st.selectbox(
 )
 selected_blog = next(b for b in blogs if b["id"] == selected_id)
 
-# ── SEO 프롬프트 수정 ─────────────────────────────
-with st.expander("✏️ SEO 프롬프트 수정", expanded=False):
-    with st.form("edit_prompt_form_lab"):
-        edited_prompt = st.text_area(
-            "SEO 프롬프트",
-            value=selected_blog["seo_prompt"],
-            height=200,
-            key=f"lab_prompt_{selected_id}",
-        )
-        edited_length = st.number_input(
-            "목표 분량(자)",
-            value=selected_blog["target_length"],
-            key=f"lab_length_{selected_id}",
-        )
-        submitted = st.form_submit_button("💾 저장")
-
-        if submitted:
-            selected_blog["seo_prompt"] = edited_prompt
-            selected_blog["target_length"] = edited_length
-            save_blogs(blogs)
-            st.success("저장 완료! (main.py 쪽에도 동일하게 반영돼요)")
-            st.rerun()
+# ── 모델별 SEO 프롬프트 수정 (3개 모델 각각 따로) ─────
+with st.expander("✏️ 모델별 SEO 프롬프트 수정", expanded=False):
+    tabs = st.tabs([LABELS[p] for p in PROVIDERS])
+    for tab, provider in zip(tabs, PROVIDERS):
+        with tab:
+            with st.form(f"edit_prompt_form_lab_{selected_id}_{provider}"):
+                current_prompt = load_prompt(selected_id, provider)
+                edited_prompt = st.text_area(
+                    f"{LABELS[provider]} 프롬프트",
+                    value=current_prompt,
+                    height=250,
+                    key=f"lab_prompt_{selected_id}_{provider}",
+                    label_visibility="collapsed",
+                )
+                submitted = st.form_submit_button(f"💾 {LABELS[provider]} 프롬프트 저장")
+                if submitted:
+                    save_prompt(selected_id, provider, edited_prompt)
+                    st.success("저장 완료!")
+                    st.rerun()
 
 keyword = st.text_input("키워드를 입력하세요")
 
@@ -76,7 +73,7 @@ if st.button("3개 모델로 글쓰기 비교", type="primary"):
                 except (RuntimeError, ValueError) as e:
                     results[provider] = f"__ERROR__:{e}"
         st.session_state.write_results = results
-        st.session_state.review_results = None  # 새로 쓰면 이전 검수 비교는 초기화
+        st.session_state.review_results = None
 
 if st.session_state.write_results:
     cols = st.columns(3)
@@ -90,7 +87,6 @@ if st.session_state.write_results:
                 else:
                     st.markdown(result)
 
-    # ── ② 검수 3사 비교 (① 결과 중 하나를 골라서) ─────
     st.divider()
     st.subheader("② 검수 비교")
 
