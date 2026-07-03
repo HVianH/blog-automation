@@ -11,9 +11,8 @@ if not check_password():
 from core.blog_config import load_blogs
 from components.ui import render_sidebar
 from components.text import generate_post
-from components.image import generate_post_elements, render_elements, render_reviewed_with_cached_images
+from components.image import generate_post_elements_by_headings, render_elements, render_reviewed_with_cached_images
 
-# provider별 API 키를 하나의 딕셔너리로 묶어서 관리 (secrets.toml에서 읽어옴)
 api_keys = {
     "gemini": st.secrets.get("GEMINI_API_KEY"),
     "openai": st.secrets.get("OPENAI_API_KEY"),
@@ -33,44 +32,41 @@ if "reviewed_text" not in st.session_state:
 # endregion
 
 
-# region 사이드바 (블로그 설정 + 모델 선택 + 검수 버튼 포함)
+# region 사이드바
 selected_blog, generate_images, text_provider, image_provider, review_provider = render_sidebar(blogs, api_keys)
 # endregion
 
 
-# region 글 작성 (버튼 눌렀을 때만 딱 한 번 생성)
+# region 글 작성 -> (이미지 켜져있으면) 소제목마다 이미지 생성
 keyword = st.text_input("키워드를 입력하세요")
 
 if st.button("글 작성"):
     try:
-        # 1. 자료조사 + SEO 글 작성 (사이드바에서 고른 provider 사용)
         with st.spinner("자료를 조사하고 글을 작성하는 중..."):
             draft_text = generate_post(text_provider, api_keys[text_provider], keyword, selected_blog)
 
-        # 2. 이미지가 켜져있으면 이미지까지 미리 생성해서 저장 (여기서만 API 호출!)
         if generate_images:
-            elements = generate_post_elements(image_provider, api_keys[image_provider], draft_text)
+            elements = generate_post_elements_by_headings(image_provider, api_keys[image_provider], draft_text)
         else:
             elements = None
 
         st.session_state.draft_text = draft_text
         st.session_state.rendered_elements = elements
-        st.session_state.reviewed_text = None  # 새 글이면 이전 검수본은 초기화
+        st.session_state.reviewed_text = None
         st.session_state.used_text_provider = text_provider
         st.session_state.used_image_provider = image_provider if generate_images else None
 
-        st.rerun()  # 사이드바(검수 버튼)가 최신 상태를 바로 반영하도록 강제 새로고침
+        st.rerun()
 
     except (RuntimeError, ValueError) as e:
         st.error(f"글 생성에 실패했습니다: {e}")
 # endregion
 
 
-# region 결과 표시 (재생성 없이, 저장된 결과만 그림)
+# region 결과 표시
 draft_text = st.session_state.draft_text
 
 if draft_text:
-    # 사용된 모델 표시
     used_text = st.session_state.get("used_text_provider", "-")
     used_image = st.session_state.get("used_image_provider") or "사용 안 함"
     st.caption(f"✍️ 글쓰기: **{used_text}**  |  🖼️ 이미지: **{used_image}**")
@@ -83,7 +79,6 @@ if draft_text:
         st.caption("🖼️ 이미지 생성이 꺼져있어요. (사이드바에서 켤 수 있어요)")
         st.markdown(draft_text)
 
-    # 검수본이 있으면 원본 아래에 같이 표시
     if st.session_state.reviewed_text:
         st.divider()
         st.write(f"### ✨ 검수본 (AI 티 줄임 — {review_provider})")
