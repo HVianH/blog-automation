@@ -58,6 +58,16 @@ def generate_image(prompt: str, api_key: str, model: str = DEFAULT_IMAGE_MODEL,
 
         except APIError as e:
             last_error = e
+
+            # moderation_blocked(안전 정책 차단)는 재시도해도 같은 프롬프트라 또 막힐 뿐이라,
+            # 시간만 낭비하지 말고 바로 포기합니다.
+            if "moderation_blocked" in str(e):
+                log(f"[GPT] 이미지 안전 정책 차단 (재시도 안 함): {e}")
+                raise RuntimeError(
+                    "이 이미지 프롬프트가 OpenAI 안전 정책에 걸려 생성할 수 없습니다. "
+                    "(민감한 소재이거나, 실존 인물/브랜드 등이 포함됐을 가능성이 있어요)"
+                )
+
             wait_seconds = attempt * 3
             log(f"[GPT] 이미지 서버 오류 (시도 {attempt}/{max_retries}): {e}. {wait_seconds}초 후 재시도.")
             time.sleep(wait_seconds)
