@@ -1,13 +1,10 @@
 blogs:
 - id: blogger
   name: info_pickup (Blogger)
-  tone: 친근하지만 전문적인 말투
-  target_length: 50
+  target_length: 1800
 - id: naver
   name: info_pickup (네이버 블로그)
-  tone: 다정하고 수다스러운 말투
   target_length: 1750
 - id: tistory
   name: info_pickup (티스토리)
-  tone: 명확하고 신뢰감 있는 정보 전달형
   target_length: 2000

@@ -11,7 +11,7 @@ if not check_password():
 from core.blog_config import load_blogs
 from components.ui import render_sidebar
 from components.text import generate_post
-from components.image import generate_post_elements_by_headings, render_elements, render_reviewed_with_cached_images
+from components.image import generate_post_elements_by_headings, render_elements
 
 api_keys = {
     "gemini": st.secrets.get("GEMINI_API_KEY"),
@@ -27,13 +27,11 @@ if "draft_text" not in st.session_state:
     st.session_state.draft_text = None
 if "rendered_elements" not in st.session_state:
     st.session_state.rendered_elements = None
-if "reviewed_text" not in st.session_state:
-    st.session_state.reviewed_text = None
 # endregion
 
 
 # region 사이드바
-selected_blog, generate_images, text_provider, image_provider, review_provider = render_sidebar(blogs, api_keys)
+selected_blog, generate_images, text_provider, image_provider = render_sidebar(blogs, api_keys)
 # endregion
 
 
@@ -52,7 +50,6 @@ if st.button("글 작성"):
 
         st.session_state.draft_text = draft_text
         st.session_state.rendered_elements = elements
-        st.session_state.reviewed_text = None
         st.session_state.used_text_provider = text_provider
         st.session_state.used_image_provider = image_provider if generate_images else None
 
@@ -71,21 +68,11 @@ if draft_text:
     used_image = st.session_state.get("used_image_provider") or "사용 안 함"
     st.caption(f"✍️ 글쓰기: **{used_text}**  |  🖼️ 이미지: **{used_image}**")
 
-    st.write("### 생성된 글 (원본)")
+    st.write("### 생성된 글")
 
     if st.session_state.rendered_elements is not None:
         render_elements(st.session_state.rendered_elements)
     else:
         st.caption("🖼️ 이미지 생성이 꺼져있어요. (사이드바에서 켤 수 있어요)")
         st.markdown(draft_text)
-
-    if st.session_state.reviewed_text:
-        st.divider()
-        st.write(f"### ✨ 검수본 (AI 티 줄임 — {review_provider})")
-        if st.session_state.rendered_elements is not None:
-            render_reviewed_with_cached_images(
-                st.session_state.reviewed_text, st.session_state.rendered_elements
-            )
-        else:
-            st.markdown(st.session_state.reviewed_text)
 # endregion
