@@ -20,6 +20,7 @@ STYLE_GUIDE = """
 
 [주의사항]
 - 실존 인물(연예인, 정치인, 유명인 등)을 특정해서 닮게 그리지 마. 필요하면 익명의 일반인 실루엣이나 상징적인 오브젝트로 대체해줘.
+- 특정 브랜드 로고나 저작권이 있는 캐릭터를 그대로 그리지 마.
 - 자극적이거나 폭력적인 장면 대신, 상징적이고 은유적인 표현을 사용해줘.
 """
 
@@ -107,33 +108,3 @@ def render_elements(elements: list) -> None:
             st.image(el["content"])
         elif el["type"] == "image_error":
             st.warning(f"이미지 생성 실패: {el['content']}")
-
-
-def render_reviewed_with_cached_images(reviewed_text: str, original_elements: list) -> None:
-    """검수본 텍스트를 화면에 그리되, 표지/소제목 이미지 자리에는 새로 만들지 않고
-    원본에서 이미 생성해둔 이미지를 순서대로(표지 -> 소제목 순) 재사용합니다.
-    """
-    cached_images = [el for el in original_elements if el["type"] in ("image", "image_error")]
-    image_iter = iter(cached_images)
-
-    cover_cached = next(image_iter, None)
-    if cover_cached:
-        if cover_cached["type"] == "image":
-            st.image(cover_cached["content"])
-        else:
-            st.warning(f"이미지 생성 실패: {cover_cached['content']}")
-
-    parts = HEADING_PATTERN.split(reviewed_text)
-    for part in parts:
-        if _is_heading(part):
-            cached = next(image_iter, None)
-            if cached is None:
-                st.warning("검수본의 소제목 개수가 원본보다 많아요. (검수 과정에서 구조가 달라진 것 같아요)")
-            elif cached["type"] == "image":
-                st.image(cached["content"])
-            else:
-                st.warning(f"이미지 생성 실패: {cached['content']}")
-            st.markdown(part)
-        else:
-            if part.strip():
-                st.markdown(part)
