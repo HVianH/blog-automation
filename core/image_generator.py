@@ -9,7 +9,7 @@ IMAGE_PROVIDERS = {
 
 
 def generate_image_bytes(provider: str, api_key: str, prompt: str, model: str = None) -> bytes:
-    """설명(prompt)을 받아서 이미지를 생성하고, 블로그 규격(가로 900~1200px, 2MB 이하)에
+    """설명(prompt)을 받아서 이미지를 생성하고, 블로그 규격(1024px, 2MB 이하)에
     맞춰 최적화한 PNG/JPEG bytes를 반환합니다.
 
     provider: "gemini" | "openai" (Claude는 지원 안 함)
