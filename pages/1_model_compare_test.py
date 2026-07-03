@@ -30,7 +30,7 @@ selected_id = st.selectbox(
 )
 selected_blog = next(b for b in blogs if b["id"] == selected_id)
 
-# ── SEO 프롬프트 수정 (여기서 바로 다듬어보고 바로 비교 가능) ─────
+# ── SEO 프롬프트 수정 ─────────────────────────────
 with st.expander("✏️ SEO 프롬프트 수정", expanded=False):
     with st.form("edit_prompt_form_lab"):
         edited_prompt = st.text_area(
@@ -84,16 +84,11 @@ if st.session_state.write_results:
         with col:
             st.markdown(f"**{LABELS[provider]}**")
             result = st.session_state.write_results[provider]
-            if isinstance(result, str) and result.startswith("__ERROR__:"):
-                st.warning(f"실패: {result.replace('__ERROR__:', '')}")
-            else:
-                st.text_area(
-                    f"{provider}_draft",
-                    value=result,
-                    height=400,
-                    label_visibility="collapsed",
-                    key=f"draft_display_{provider}",
-                )
+            with st.container(border=True, height=400):
+                if isinstance(result, str) and result.startswith("__ERROR__:"):
+                    st.warning(f"실패: {result.replace('__ERROR__:', '')}")
+                else:
+                    st.markdown(result)
 
     # ── ② 검수 3사 비교 (① 결과 중 하나를 골라서) ─────
     st.divider()
@@ -132,13 +127,8 @@ if st.session_state.review_results:
         with col:
             st.markdown(f"**{LABELS[provider]}**")
             result = st.session_state.review_results[provider]
-            if isinstance(result, str) and result.startswith("__ERROR__:"):
-                st.warning(f"실패: {result.replace('__ERROR__:', '')}")
-            else:
-                st.text_area(
-                    f"{provider}_reviewed",
-                    value=result,
-                    height=400,
-                    label_visibility="collapsed",
-                    key=f"reviewed_display_{provider}",
-                )
+            with st.container(border=True, height=400):
+                if isinstance(result, str) and result.startswith("__ERROR__:"):
+                    st.warning(f"실패: {result.replace('__ERROR__:', '')}")
+                else:
+                    st.markdown(result)
